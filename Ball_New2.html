@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <title>Simulation Ball on Parabolic Track</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 0; background: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+    }
+    canvas {
+      border: 1px solid #aaa;
+      margin-top: 10px;
+    }
+    #controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    label {
+      font-size: 16px;
+    }
+    input[type="number"] {
+      font-size: 16px;
+      width: 60px;
+      padding: 2px 4px;
+    }
+    button {
+      font-size: 18px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    #credit {
+      margin-top: 10px;
+      font-size: 16px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="controls">
+    <label for="massInput">Mass (kg):</label>
+    <input type="number" id="massInput" value="1" min="0.1" step="0.1" />
+    <button id="startPauseBtn">Start</button>
+  </div>
+
+  <canvas id="myCanvas" width="800" height="500"></canvas>
+
+  <div id="credit">พัฒนาระบบโดย นายสราวุฒิ สุริยา</div>
+
+  <script>
+    // ค่าคงที่และตัวแปร
+    const canvas = document.getElementById('myCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const a = 0.01;
+    const gDisplay = 10;   // แรงโน้มถ่วงจริง (m/s²)
+    const heightMaxGraph = a * 150 * 150;  // ความสูงกราฟิกสูงสุด = 225
+    const heightMaxReal = 4.5;             // ความสูงจริง (เมตร)
+    const barWidth = 20;
+    const maxBarHeight = 100;
+
+    let mass = 1;
+    let totalEnergy = 0;
+    let isRunning = false;
+
+    let ball = {
+      x: -150,
+      y: 0,
+      vx: 1.2,
+      radius: 10,
+    };
+
+    // อ้างอิง element
+    const massInput = document.getElementById('massInput');
+    const startPauseBtn = document.getElementById('startPauseBtn');
+
+    // ฟังก์ชันทางคณิตศาสตร์
+    function parabola(x) {
+      return a * x * x;
+    }
+
+    function computePE(x, m) {
+      let y_graph = parabola(x);
+      let y_real = y_graph * (heightMaxReal / heightMaxGraph);
+      return m * gDisplay * y_real;
+    }
+
+    function computeTotalEnergy(m) {
+      const xMax = 150;
+      return computePE(xMax, m);
+    }
+
+    // วาดรางพาราโบลา
+    function drawParabola() {
+      ctx.beginPath();
+      ctx.strokeStyle = '#323232';
+      ctx.lineWidth = 2;
+      for (let x = -150; x <= 150; x += 1) {
+        let y = parabola(x);
+        let canvasX = canvas.width / 2 + x;
+        let canvasY = canvas.height / 2 + 100 - y;
+        if (x === -150) ctx.moveTo(canvasX, canvasY);
+        else ctx.lineTo(canvasX, canvasY);
+      }
+      ctx.stroke();
+    }
+
+    // วาดลูกบอล
+    function drawBall() {
+      let cx = canvas.width / 2 + ball.x;
+      let cy = canvas.height / 2 + 100 - ball.y;
+      ctx.beginPath();
+      ctx.fillStyle = 'rgb(200,50,50)';
+      ctx.arc(cx, cy, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // วาดบาร์พลังงาน
+    function drawEnergyBars(PE, KE, totalEnergy) {
+      const scale = maxBarHeight / totalEnergy;
+      const baseX = 550;
+      const baseY = canvas.height / 2 + 120;
+
+      // PE bar
+      ctx.fillStyle = 'rgb(0, 180, 255)';
+      ctx.fillRect(baseX, baseY, barWidth, -PE * scale);
+
+      // KE bar
+      ctx.fillStyle = 'rgb(255, 120, 0)';
+      ctx.fillRect(baseX + barWidth + 10, baseY, barWidth, -KE * scale);
+
+      // Total bar
+      ctx.fillStyle = 'rgb(80, 80, 80)';
+      ctx.fillRect(baseX + 2 * (barWidth + 10), baseY, barWidth, -totalEnergy * scale);
+
+      // Labels
+      ctx.fillStyle = '#000';
+      ctx.font = '14px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('PE', baseX + barWidth / 2, baseY + 20);
+      ctx.fillText('KE', baseX + barWidth + 10 + barWidth / 2, baseY + 20);
+      ctx.fillText('Total', baseX + 2 * (barWidth + 10) + barWidth / 2, baseY + 20);
+
+      // Numeric values
+      ctx.font = '12px Arial';
+      ctx.fillText(PE.toFixed(2), baseX + barWidth / 2, baseY - PE * scale - 5);
+      ctx.fillText(KE.toFixed(2), baseX + barWidth + 10 + barWidth / 2, baseY - KE * scale - 5);
+      ctx.fillText(totalEnergy.toFixed(2), baseX + 2 * (barWidth + 10) + barWidth / 2, baseY - totalEnergy * scale - 5);
+    }
+
+    // เขียนข้อความ g และ h
+    function drawInfoText() {
+      ctx.fillStyle = '#000';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('g = 10 m/s²', 60, canvas.height - 70);
+      ctx.fillText('Height = 4.5 m', 60, canvas.height - 40);
+    }
+
+    // อัพเดตสถานะลูกบอล
+    function updateBall() {
+      let slope = 2 * a * ball.x;
+      let angle = Math.atan(slope);
+
+      let gSim = gDisplay * (heightMaxReal / heightMaxGraph);
+      let ax = -gSim * Math.sin(angle);
+
+      ball.vx += ax;
+      ball.x += ball.vx;
+
+      if (ball.x < -150) {
+        ball.x = -150;
+        ball.vx *= -0.7;
+      } else if (ball.x > 150) {
+        ball.x = 150;
+        ball.vx *= -0.7;
+      }
+
+      ball.y = parabola(ball.x);
+    }
+
+    // main loop
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawInfoText();
+
+      drawParabola();
+
+      if (isRunning) updateBall();
+
+      drawBall();
+
+      let PE = computePE(ball.x, mass);
+      let KE = totalEnergy - PE;
+      if (KE < 0) KE = 0;
+
+      drawEnergyBars(PE, KE, totalEnergy);
+
+      requestAnimationFrame(draw);
+    }
+
+    // Event handlers
+    massInput.addEventListener('input', () => {
+      let m = parseFloat(massInput.value);
+      if (!isNaN(m) && m > 0) {
+        mass = m;
+        totalEnergy = computeTotalEnergy(mass);
+      }
+    });
+
+    startPauseBtn.addEventListener('click', () => {
+      isRunning = !isRunning;
+      startPauseBtn.textContent = isRunning ? 'Pause' : 'Start';
+    });
+
+    // Init
+    totalEnergy = computeTotalEnergy(mass);
+    ball.y = parabola(ball.x);
+
+    // เริ่ม animation loop
+    draw();
+  </script>
+
+</body>
+</html>
