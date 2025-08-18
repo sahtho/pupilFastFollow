@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +36,7 @@
       <span id="kValue">10</span> N/m
     </label>
     <br><br>
-    <label>Force (F): 
+    <label>Force (F(ext)): 
       <input type="range" id="fInput" min="-100" max="100" value="0">
       <input type="number" id="fNumber" min="-100" max="100" value="0">
       <span id="fValue">0</span> N
@@ -122,19 +121,20 @@
     }
 
     function update() {
-      const x = F / k;
-      const scale = 20;
+      const x = F / k;              // การกระจัด
+      const scale = 20;             // สเกลให้พอดีกับหน้าจอ
       const displacementPx = x * scale;
       xValue.textContent = x.toFixed(2);
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw anchor point
+      // จุดยึดสปริง
       ctx.beginPath();
       ctx.arc(springStartX, springY, 14, 0, 2 * Math.PI);
       ctx.fillStyle = "black";
       ctx.fill();
 
+      // เส้นสมดุล
       const equilibriumX = springStartX + springRestLength;
       ctx.setLineDash([5, 5]);
       ctx.beginPath();
@@ -145,24 +145,29 @@
       ctx.stroke();
       ctx.setLineDash([]);
 
+      // วาดสปริง
       const currentLength = springRestLength + displacementPx;
       drawSpring(springStartX, springY, currentLength);
 
-      if (displacementPx > 0) {
-        drawArrow(equilibriumX, equilibriumX + displacementPx, springY - 40, "black", 5, 14);
-        ctx.fillStyle = "black";
-        ctx.font = "30px Arial";
-        ctx.fillText(`${F.toFixed(0)} N`, equilibriumX + displacementPx / 2 - 20, springY - 60);
-      } else if (displacementPx < 0) {
-        drawArrow(equilibriumX, equilibriumX + displacementPx, springY + 40, "red", 5, 14);
+      if (displacementPx !== 0) {
+        const massX = equilibriumX + displacementPx;
+
+        // แรงภายนอก (สีน้ำเงิน)
+        drawArrow(equilibriumX, massX, springY - 40, "blue", 5, 14);
+        ctx.fillStyle = "blue";
+        ctx.font = "22px Arial";
+        ctx.fillText(`F (ext) = ${F.toFixed(0)} N`, (equilibriumX + massX) / 2 - 40, springY - 60);
+
+        // แรงสปริง (สีแดง)
+        drawArrow(massX, equilibriumX, springY + 40, "red", 5, 14);
         ctx.fillStyle = "red";
-        ctx.font = "30px Arial";
-        ctx.fillText(`${F.toFixed(0)} N`, equilibriumX + displacementPx / 2 - 20, springY + 75);
+        ctx.font = "22px Arial";
+        ctx.fillText(`F (spring) = ${(-k * x).toFixed(0)} N`, (equilibriumX + massX) / 2 - 60, springY + 70);
       }
     }
 
     update();
   </script>
-<h3><a href=./Ball_New2.html>Ball</a></h3>
+  <h3><a href=./Ball_New2.html>Ball</a></h3>
 </body>
 </html>
